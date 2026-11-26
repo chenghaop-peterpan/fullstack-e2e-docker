@@ -47,3 +47,8 @@ services:
 
 volumes:
   fs_postgres_data:
+
+environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supersecretpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-expense_db}
