@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Manager | 全端記帳管理系統</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --border: #334155;
+      --text: #f8fafc; --muted: #94a3b8; --primary: #3b82f6;
+      --success: #10b981; --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      margin: 0; padding: 2rem;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    h1 { margin: 0; font-size: 1.5rem; }
+    .stats { display: flex; gap: 1rem; }
+    .stat-box {
+      background: var(--card); border: 1px solid var(--border);
+      padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.95rem;
+    }
+    .panel {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem;
+    }
+    .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.75rem; }
+    input, select, button {
+      padding: 0.6rem 0.8rem; border-radius: 6px; border: 1px solid var(--border);
+      background: #0f172a; color: var(--text); font-size: 0.9rem;
+    }
+    button { cursor: pointer; font-weight: 600; border: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; margin-right: 0.3rem; }
+    .btn-edit { background: #475569; color: white; }
+    .btn-save { background: var(--success); color: #052e16; }
+    .btn-del { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.85rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-size: 0.85rem; }
+    .badge {
+      padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem;
+      background: rgba(59,130,246,0.2); color: #60a5fa;
+    }
+    .edit-input { width: 110px; padding: 0.3rem 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💰 全端消費記帳管理系統</h1>
+      <div class="stats">
+        <div class="stat-box">筆數: <strong id="stat-count">0</strong></div>
+        <div class="stat-box" style="color:var(--success)">總支出: $<strong id="stat-total">0</strong></div>
+      </div>
+    </header>
+
+    <!-- 新增消費表單 (POST) -->
+    <div class="panel">
+      <form id="create-form" class="form-grid">
+        <input type="text" id="input-name" placeholder="項目名稱 (例: 購買機械鍵盤)" required>
+        <input type="number" id="input-amount" placeholder="金額 (例: 3500)" step="1" required>
+        <select id="input-category">
+          <option value="3C周邊">3C周邊</option>
+          <option value="飲食" selected>飲食</option>
+          <option value="交通">交通</option>
+          <option value="生活">生活</option>
+        </select>
+        <button type="submit" id="btn-submit" class="btn-primary">+ 新增</button>
+      </form>
+    </div>
+
+    <!-- 消費列表 (GET / PUT / DELETE) -->
+    <div class="panel" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>分類</th>
+            <th>項目名稱</th>
+            <th>金額 (NTD)</th>
+            <th>操作 (Update / Delete)</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "/api/items";
+
+    // 1. GET：載入清單與總支出
+    async function loadItems() {
+      const res = await fetch(API_BASE);
+      const data = await res.json();
+
+      document.getElementById("stat-count").textContent = data.count;
+      document.getElementById("stat-total").textContent = data.total_amount;
+
+      const tbody = document.getElementById("items-tbody");
+      tbody.innerHTML = "";
+
+      data.items.forEach(item => {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-item-id", item.id);
+        tr.innerHTML = `
+          <td>#${item.id}</td>
+          <td><span class="badge">${item.category}</span></td>
+          <td class="item-name"><strong>${item.name}</strong></td>
+          <td class="item-amount" data-value="${item.amount}">$${item.amount}</td>
+          <td class="item-actions">
+            <button class="btn-sm btn-edit" onclick="enableEdit(${item.id}, '${item.name.replace(/'/g, "\\'")}', ${item.amount})">編輯</button>
+            <button class="btn-sm btn-del" onclick="deleteItem(${item.id})">刪除</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 2. POST：新增項目
+    document.getElementById("create-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById("input-name").value,
+        amount: parseFloat(document.getElementById("input-amount").value),
+        category: document.getElementById("input-category").value,
+      };
+      await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      document.getElementById("input-name").value = "";
+      document.getElementById("input-amount").value = "";
+      loadItems();
+    });
+
+    // 3-1. 切換為行內編輯模式
+    function enableEdit(id, currentName, currentAmount) {
+      const tr = document.querySelector(`tr[data-item-id="${id}"]`);
+      tr.querySelector(".item-name").innerHTML = `<input type="text" class="edit-input edit-name" value="${currentName}">`;
+      tr.querySelector(".item-amount").innerHTML = `<input type="number" class="edit-input edit-amount" value="${currentAmount}">`;
+      tr.querySelector(".item-actions").innerHTML = `
+        <button class="btn-sm btn-save" onclick="saveEdit(${id})">儲存</button>
+        <button class="btn-sm btn-edit" onclick="loadItems()">取消</button>
+      `;
+    }
+
+    // 3-2. PUT：送出修改
+    async function saveEdit(id) {
+      const tr = document.querySelector(`tr[data-item-id="${id}"]`);
+      const newName = tr.querySelector(".edit-name").value;
+      const newAmount = parseFloat(tr.querySelector(".edit-amount").value);
+
+      await fetch(`${API_BASE}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, amount: newAmount }),
+      });
+      loadItems();
+    }
+
+    // 4. DELETE：刪除項目
+    async function deleteItem(id) {
+      await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+      loadItems();
+    }
+
+    loadItems();
+  </script>
+</body>
+</html>
