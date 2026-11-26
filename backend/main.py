@@ -1,61 +1,13 @@
-import os
-import time
-from datetime import datetime
-from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://admin:supersecretpassword@db:5432/expense_db",
-)
+from src.database import get_db, initialize_database
+from src.models import ExpenseItem
+from src.schemas import ItemCreate, ItemUpdate
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-
-# 消費紀錄資料表模型
-class ExpenseItem(Base):
-    __tablename__ = "expense_items"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)        # 項目名稱（例如：購買機械鍵盤）
-    amount = Column(Float, nullable=False)       # 金額（例如：3500）
-    category = Column(String, default="3C周邊")   # 分類（飲食 / 3C周邊 / 交通 / 生活）
-    created_at = Column(DateTime, default=datetime.now)
-
-
-for _ in range(10):
-    try:
-        Base.metadata.create_all(bind=engine)
-        break
-    except Exception:
-        time.sleep(2)
+initialize_database()
 
 app = FastAPI(title="Fullstack Expense Manager API", version="1.0.0")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-class ItemCreate(BaseModel):
-    name: str
-    amount: float
-    category: Optional[str] = "飲食"
-
-
-class ItemUpdate(BaseModel):
-    name: Optional[str] = None
-    amount: Optional[float] = None
-    category: Optional[str] = None
 
 
 @app.get("/health")
