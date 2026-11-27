@@ -1,34 +1,14 @@
-# ==========================================
-# 階段 1：Builder（建立隔離虛擬環境並安裝套件）
-# ==========================================
-FROM python:3.12-slim AS builder
+# 直接使用官方預裝好 Python、Playwright 1.49.1 與 Chromium 的映像檔
+FROM mcr.microsoft.com/playwright/python:v1.49.1-noble
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /build
-
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-
-# ==========================================
-# 階段 2：Runtime（使用官方預裝好瀏覽器與依賴的 Playwright 映像檔）
-# ==========================================
-FROM mcr.microsoft.com/playwright/python:v1.49.1-noble AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
-
 WORKDIR /app
 
-# 1. 從 Builder 複製 Python 虛擬環境
-COPY --from=builder /opt/venv /opt/venv
+# 1. 若未來有額外套件可透過 requirements.txt 安裝（playwright 本身已內建）
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 2. 補裝 Noto CJK 繁體中文字型（確保網頁截圖中文正常顯示）
 RUN apt-get update && \
