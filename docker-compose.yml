@@ -22,7 +22,7 @@ services:
     container_name: fs-api
     restart: always
     ports:
-      - "8030:8000"   # 對外映射 8030，方便直接查看 Swagger API 文件
+      - "8030:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-supersecretpassword}@db:5432/${POSTGRES_DB:-expense_db}
     depends_on:
@@ -40,9 +40,27 @@ services:
     container_name: fs-web
     restart: always
     ports:
-      - "8080:80"     # 前端主入口：http://localhost:8080
+      - "8080:80"
     depends_on:
       api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 4. Playwright 端對端自動化測試專職容器（使用 test profile，需主動觸發才執行）
+  e2e-tester:
+    build: ./e2e
+    container_name: fs-e2e-tester
+    profiles: ["test"]
+    environment:
+      BASE_URL: "http://web"
+    volumes:
+      - ./reports:/app/reports
+    depends_on:
+      web:
         condition: service_healthy
 
 volumes:

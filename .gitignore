@@ -1,2 +1,7 @@
-__pycache__
-__init__
+.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+reports/*
+!reports/.gitkeep
