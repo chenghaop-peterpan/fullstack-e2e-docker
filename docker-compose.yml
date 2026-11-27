@@ -52,7 +52,7 @@ services:
 
   # 4. Playwright 端對端自動化測試專職容器（使用 test profile，需主動觸發才執行）
   e2e-tester:
-    build: ./e2e
+    build: ./test
     container_name: fs-e2e-tester
     profiles: ["test"]
     environment:
