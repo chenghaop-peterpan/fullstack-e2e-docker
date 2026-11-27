@@ -17,7 +17,7 @@ def run_e2e_tests():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
-            headless=True,
+            headless=False,  # 在 Docker 環境中，headless 模式可能需要額外設定，這裡先設為 False 方便除錯
             args=["--no-sandbox", "--disable-dev-shm-usage"],
         )
         context = browser.new_context(viewport={"width": 1280, "height": 800})
